@@ -1,10 +1,26 @@
 import express from "express";
 import crypto from "crypto";
 const app = express();
-//import { v4 as uuidv4 } from 'uuid'; // Uncomment if you want to use UUID for IDs
+import cors from "cors";
+import bodyParser from "body-parser";
+
+
+const jsonParser = bodyParser.json();
+const urlencodedParser = bodyParser.urlencoded({
+  extended: false,
+});
+
+app.use(jsonParser);
+app.use(urlencodedParser);
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 
 app.use(express.json());
-
 
 app.use("/todo", (req, res, next) => {
   if (req.method === "POST") {
@@ -31,6 +47,7 @@ app.post("/login", (req, res, nextFunction) => {
 
 app.post("/todo", (req, res) => {
   const body = req.body;
+  console.log(req.body);
 
   const id = crypto.randomUUID();
   const todoItem = { ...body, isDone: false, id };
@@ -40,7 +57,7 @@ app.post("/todo", (req, res) => {
   return res.json({
     message: "Todo has been added",
     isSuccessful: true,
-    data: todoItem
+    data: todoItem,
   });
 });
 
@@ -87,9 +104,8 @@ app.put("/todo", (req, res) => {
   });
 });
 
-
 app.patch("/todo", (req, res) => {
-  const {id} = req.query;
+  const { id } = req.query;
   console.log(id);
 
   let todoItem = todoItems.find((value) => value.id === id);
@@ -98,11 +114,11 @@ app.patch("/todo", (req, res) => {
   }
   // update the specified details of the id with a new one
   const newItems = todoItems.map((todoItem) => {
-    if(todoItem.id === id) {
+    if (todoItem.id === id) {
       return { ...todoItem, ...req.body };
     }
   });
- newItems.filter((item) => item !== undefined);
+  newItems.filter((item) => item !== undefined);
 
   todoItems = newItems;
 
@@ -112,16 +128,20 @@ app.patch("/todo", (req, res) => {
   });
 });
 
+app.delete("/todo/:id", (req, res) => {
+  const { id } = req.params;
+  console.log(id);
+  let todoItem = todoItems.find((value) => value.id === id);
+  if (!todoItem) {
+    return res.status(404).json({ message: "Todo item not found" });
+  }
 
-
-
-
-
-
-
-
-
-
+  const newTodos = todoItems.filter((item) => item.id !== id);
+  todoItems = newTodos;
+  return res.status(200).json({
+    message: "deleted successfully",
+  });
+});
 
 app.listen("5000", (error) => {
   if (error) {
