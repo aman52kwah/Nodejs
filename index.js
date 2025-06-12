@@ -73,14 +73,14 @@ app.get("/todo/:id", (req, res) => {
 
   res.status(200).json({
     message: "Successfully retrieved",
+    isSuccessful:true,
     data: todoItem,
   });
 });
 
 app.put("/todo", (req, res) => {
   const { id } = req.query;
-  console.log(id);
-  console.log(req.body);
+ 
 
   let todoItem = todoItems.find((value) => value.id === id);
 
@@ -99,6 +99,7 @@ app.put("/todo", (req, res) => {
   todoItems = newItems;
 
   res.status(200).json({
+    isSuccessful:true,
     message: "Successfully updated the todo item",
     data: { ...req.body },
   });
