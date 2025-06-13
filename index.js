@@ -3,16 +3,46 @@ import crypto from "crypto";
 const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
-
+import { DataTypes, Sequelize } from "sequelize";
 
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({
   extended: false,
-});
+}); 
 
 app.use(jsonParser);
 app.use(urlencodedParser);
 
+const sequelize = new Sequelize("tod_db", "MIKE", "AfiaSarpong@55",  {
+  host: "localhost",
+  dialect: "mysql",
+});
+ // create todo models
+const Todo = sequelize.define("Todo",{
+  id:{
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+    allowNull: false,
+  },
+  title:{
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  description:{
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  isDone:{
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  }
+},{tableName: "todos",
+   timestamps: true});
+
+
+
+ 
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -73,14 +103,13 @@ app.get("/todo/:id", (req, res) => {
 
   res.status(200).json({
     message: "Successfully retrieved",
-    isSuccessful:true,
+    isSuccessful: true,
     data: todoItem,
   });
 });
 
 app.put("/todo", (req, res) => {
   const { id } = req.query;
- 
 
   let todoItem = todoItems.find((value) => value.id === id);
 
@@ -99,7 +128,7 @@ app.put("/todo", (req, res) => {
   todoItems = newItems;
 
   res.status(200).json({
-    isSuccessful:true,
+    isSuccessful: true,
     message: "Successfully updated the todo item",
     data: { ...req.body },
   });
