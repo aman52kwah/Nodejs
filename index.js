@@ -13,7 +13,7 @@ const urlencodedParser = bodyParser.urlencoded({
 app.use(jsonParser);
 app.use(urlencodedParser);
 
-const sequelize = new Sequelize("tod_db", "MIKE", "AfiaSarpong@55",  {
+const sequelize = new Sequelize("todo_db", "MIKE", "AfiaSarpong@55",  {
   host: "localhost",
   dialect: "mysql",
 });
@@ -38,7 +38,24 @@ const Todo = sequelize.define("Todo",{
     defaultValue: false,
   }
 },{tableName: "todos",
-   timestamps: true});
+  //  timestamps: true
+  });
+
+async function initializeDatabase(){
+    try {
+    await sequelize.authenticate();
+    console.log("Connection has been established successfully.");
+
+sequelize.sync({alter:false}); // force: true will drop the table if it already exists
+   
+  } catch (error) {
+    console.error( error);
+  }
+}
+initializeDatabase();
+
+
+
 
 
 
