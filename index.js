@@ -4,62 +4,64 @@ const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
 import { DataTypes, Sequelize } from "sequelize";
-
+const passport = require("passport");
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({
   extended: false,
-}); 
+});
+
 
 app.use(jsonParser);
 app.use(urlencodedParser);
 
-const sequelize = new Sequelize("todo_db", "MIKE", "AfiaSarpong@55",  {
+//authentication packages
+const LocalStrategy = require("passport-local");
+
+const sequelize = new Sequelize("todo_db", "MIKE", "AfiaSarpong@55", {
   host: "localhost",
   dialect: "mysql",
 });
- // create todo models
-const Todo = sequelize.define("Todo",{
-  id:{
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
-    allowNull: false,
+// create todo models
+const Todo = sequelize.define(
+  "Todo",
+  {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      allowNull: false,
+    },
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    isDone: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
   },
-  title:{
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  description:{
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  isDone:{
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
+  {
+    tableName: "todos",
+    //  timestamps: true
   }
-},{tableName: "todos",
-  //  timestamps: true
-  });
+);
 
-async function initializeDatabase(){
-    try {
+async function initializeDatabase() {
+  try {
     await sequelize.authenticate();
     console.log("Connection has been established successfully.");
 
-sequelize.sync({alter:false}); // force: true will drop the table if it already exists
-   
+    sequelize.sync({ alter: false }); // force: true will drop the table if it already exists
   } catch (error) {
-    console.error( error);
+    console.error(error);
   }
 }
 initializeDatabase();
 
-
-
-
-
-
- 
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -93,19 +95,22 @@ app.post("/login", (req, res, nextFunction) => {
 });
 
 app.post("/todo", (req, res) => {
-  const body = req.body;
-  console.log(req.body);
+  try {
+    const { title, description } = req.body;
+    const todoItem = { title, description, isDone: false };
+    //instead of pushing to the array, create using db
+    Todo.create(todoItem);
 
-  const id = crypto.randomUUID();
-  const todoItem = { ...body, isDone: false, id };
-  todoItems.push(todoItem);
-
-  res.status(201);
-  return res.json({
-    message: "Todo has been added",
-    isSuccessful: true,
-    data: todoItem,
-  });
+    res.status(201);
+    return res.json({
+      message: "Todo has been added",
+      isSuccessful: true,
+      data: todoItem,
+    });
+  } catch (error) {
+    console.error("error creating todo", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 app.get("/todo/:id", (req, res) => {
