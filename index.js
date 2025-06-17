@@ -4,18 +4,17 @@ const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
 import { DataTypes, Sequelize } from "sequelize";
-const passport = require("passport");
+//import passport from "passport";
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({
   extended: false,
 });
 
-
 app.use(jsonParser);
 app.use(urlencodedParser);
 
 //authentication packages
-const LocalStrategy = require("passport-local");
+//const LocalStrategy = require("passport-local");
 
 const sequelize = new Sequelize("todo_db", "MIKE", "AfiaSarpong@55", {
   host: "localhost",
@@ -49,6 +48,40 @@ const Todo = sequelize.define(
     //  timestamps: true
   }
 );
+
+const User = sequelize.define("User", {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  username: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true,
+    },
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    //we are allowing null for Oauth provides, if using only the local strategy
+  },
+  provider: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  displayName: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+});
 
 async function initializeDatabase() {
   try {
@@ -86,8 +119,17 @@ app.use("/todo", (req, res, next) => {
 // Sample todo items array -> this is our db
 let todoItems = [];
 
-app.get("/", (req, res, nextFunction) => {
-  return res.json(todoItems);
+app.get("/", async (req, res, nextFunction) => {
+  try{
+    const data =await Todo.findAll();
+    return res.json(data);
+    
+  } catch(error){
+    return res.status(500).json({
+      message:"Error fetching todos",
+      error:error.message,
+    });
+  }
 });
 
 app.post("/login", (req, res, nextFunction) => {
@@ -113,72 +155,87 @@ app.post("/todo", (req, res) => {
   }
 });
 
-app.get("/todo/:id", (req, res) => {
-  const { id } = req.params;
-  console.log(id);
+app.get("/todo/:id", async (req, res) => {
+ try{
+const {id} = req.params;
 
-  let todoItem = todoItems.find((value) => value.id === id);
+const todoItem = await Todo.findByPk(id);
+if(!todoItem){
+  throw new Error("failed to fetch todo item");
+}
 
-  if (!todoItem) {
-    return res.status(404).json({ message: "Todo item is not found" });
-  }
-
-  res.status(200).json({
-    message: "Successfully retrieved",
-    isSuccessful: true,
-    data: todoItem,
+return res.status(200).json({
+  message:"Successfully retrieved",
+  isSuccessful:true,
+  data:todoItem,
+});
+ } catch(error){
+  return res.status(500).json({
+    message:"Error fetching data",
+    error: error.message,
   });
+ }
 });
 
-app.put("/todo", (req, res) => {
-  const { id } = req.query;
-
-  let todoItem = todoItems.find((value) => value.id === id);
-
-  if (!todoItem) {
-    return res.status(404).json({ message: "Todo item is not found" });
+app.put("/todo", async (req, res) => {
+  try{
+    const { id, title, description, isDone } = req.body;
+  
+    //find a todo item using findByPk in the database
+ const todo = await Todo.findByPk(id);
+    //if not found , then go ahead and bounce the user
+  if (!todo) {
+    throw new Error("Todo item not found");
   }
 
-  // replace the specified details of the id with a new one
-  const newItems = todoItems.map((todoItem) => {
-    if (todoItem.id === id) {
-      return { ...req.body };
-    }
-    return todoItem;
+  //if the todo is found, go ahead and update it
+ const updatedTodoItem = await todo.update({
+  id,
+  title,
+   description,
+    isDone,
   });
 
-  todoItems = newItems;
 
   res.status(200).json({
     isSuccessful: true,
     message: "Successfully updated the todo item",
-    data: { ...req.body },
+    data: updatedTodoItem.dataValues,
   });
+  } catch(error)
+  {
+    console.error(error);
+    return res.status(500).json({
+      message :"Error updating todo item",
+      error: error.message,
+  });
+
+}
 });
 
-app.patch("/todo", (req, res) => {
-  const { id } = req.query;
-  console.log(id);
+// app.patch("/todo", (req, res) => {
+//   const { id } = req.query;
+//   console.log(id);
 
-  let todoItem = todoItems.find((value) => value.id === id);
-  if (!todoItem) {
-    return res.status(404).json({ message: "Todo item is not found" });
-  }
-  // update the specified details of the id with a new one
-  const newItems = todoItems.map((todoItem) => {
-    if (todoItem.id === id) {
-      return { ...todoItem, ...req.body };
-    }
-  });
-  newItems.filter((item) => item !== undefined);
+//   let todoItem = todoItems.find((value) => value.id === id);
+//   if (!todoItem) {
+//     return res.status(404).json({ message: "Todo item is not found" });
+//   }
+//   // update the specified details of the id with a new one
+//   const newItems = todoItems.map((todoItem) => {
+//     if (todoItem.id === id) {
+//       return { ...todoItem, ...req.body };
+//     }
+//   });
+//   newItems.filter((item) => item !== undefined);
 
-  todoItems = newItems;
+//   todoItems = newItems;
 
-  res.status(200).json({
-    message: "Successfully updated the todo item",
-    data: { ...req.body },
-  });
-});
+//   res.status(200).json({
+//     message: "Successfully updated the todo item",
+//     data: { ...req.body },
+//   });
+// });
 
 app.delete("/todo/:id", (req, res) => {
   const { id } = req.params;
