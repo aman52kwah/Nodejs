@@ -4,7 +4,7 @@ const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
 import { DataTypes, Sequelize } from "sequelize";
-//import passport from "passport";
+import passport from "passport";
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({
   extended: false,
@@ -14,12 +14,50 @@ app.use(jsonParser);
 app.use(urlencodedParser);
 
 //authentication packages
-//const LocalStrategy = require("passport-local");
+import LocalStrategy from "passport-local";
 
 const sequelize = new Sequelize("todo_db", "MIKE", "AfiaSarpong@55", {
   host: "localhost",
   dialect: "mysql",
 });
+
+//USER MODEL
+const User = sequelize.define(
+  "User",
+  {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    username: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: { isEmail: true },
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    //we are allowing null for Oauth provides, if using only the local strategy },
+    provider: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    displayName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+  },
+  { tableNames: "users" }
+);
+
 // create todo models
 const Todo = sequelize.define(
   "Todo",
@@ -42,6 +80,15 @@ const Todo = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    //add a foreign key to link to user single todo
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: User, // refers to table name
+        key: "id", // refers to column name in Users table
+      },
+    },
   },
   {
     tableName: "todos",
@@ -49,38 +96,14 @@ const Todo = sequelize.define(
   }
 );
 
-const User = sequelize.define("User", {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
-  },
-  username: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    unique: true,
-  },
-  email: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: true,
-    },
-  },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    //we are allowing null for Oauth provides, if using only the local strategy
-  },
-  provider: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  displayName: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
+//model relationships
+//a user can have many todos
+User.hasMany(Todo,{
+  foreignKey:"UserId",
+});
+// a todo belongs to a user
+Todo.belongsTo(User,{
+  foreignKey:"UserId",
 });
 
 async function initializeDatabase() {
@@ -120,14 +143,13 @@ app.use("/todo", (req, res, next) => {
 let todoItems = [];
 
 app.get("/", async (req, res, nextFunction) => {
-  try{
-    const data =await Todo.findAll();
+  try {
+    const data = await Todo.findAll();
     return res.json(data);
-    
-  } catch(error){
+  } catch (error) {
     return res.status(500).json({
-      message:"Error fetching todos",
-      error:error.message,
+      message: "Error fetching todos",
+      error: error.message,
     });
   }
 });
@@ -156,61 +178,58 @@ app.post("/todo", (req, res) => {
 });
 
 app.get("/todo/:id", async (req, res) => {
- try{
-const {id} = req.params;
+  try {
+    const { id } = req.params;
 
-const todoItem = await Todo.findByPk(id);
-if(!todoItem){
-  throw new Error("failed to fetch todo item");
-}
+    const todoItem = await Todo.findByPk(id);
+    if (!todoItem) {
+      throw new Error("failed to fetch todo item");
+    }
 
-return res.status(200).json({
-  message:"Successfully retrieved",
-  isSuccessful:true,
-  data:todoItem,
-});
- } catch(error){
-  return res.status(500).json({
-    message:"Error fetching data",
-    error: error.message,
-  });
- }
+    return res.status(200).json({
+      message: "Successfully retrieved",
+      isSuccessful: true,
+      data: todoItem,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching data",
+      error: error.message,
+    });
+  }
 });
 
 app.put("/todo", async (req, res) => {
-  try{
+  try {
     const { id, title, description, isDone } = req.body;
-  
+
     //find a todo item using findByPk in the database
- const todo = await Todo.findByPk(id);
+    const todo = await Todo.findByPk(id);
     //if not found , then go ahead and bounce the user
-  if (!todo) {
-    throw new Error("Todo item not found");
-  }
+    if (!todo) {
+      throw new Error("Todo item not found");
+    }
 
-  //if the todo is found, go ahead and update it
- const updatedTodoItem = await todo.update({
-  id,
-  title,
-   description,
-    isDone,
-  });
+    //if the todo is found, go ahead and update it
+    const updatedTodoItem = await todo.update({
+      id,
+      title,
+      description,
+      isDone,
+    });
 
-
-  res.status(200).json({
-    isSuccessful: true,
-    message: "Successfully updated the todo item",
-    data: updatedTodoItem.dataValues,
-  });
-  } catch(error)
-  {
+    res.status(200).json({
+      isSuccessful: true,
+      message: "Successfully updated the todo item",
+      data: updatedTodoItem.dataValues,
+    });
+  } catch (error) {
     console.error(error);
     return res.status(500).json({
-      message :"Error updating todo item",
+      message: "Error updating todo item",
       error: error.message,
-  });
-
-}
+    });
+  }
 });
 
 // app.patch("/todo", (req, res) => {
