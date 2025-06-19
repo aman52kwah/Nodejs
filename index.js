@@ -10,11 +10,6 @@ import session from "express-session";
 import connectSessionSequelize from "connect-session-sequelize";
 const SequelizeStore = connectSessionSequelize(session.Store);
 
-
-
-
-
-
 //middleware
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({
@@ -109,20 +104,20 @@ const Todo = sequelize.define(
 
 //model relationships
 //a user can have many todos
-User.hasMany(Todo,{
-  foreignKey:"UserId",
+User.hasMany(Todo, {
+  foreignKey: "UserId",
 });
 // a todo belongs to a user
-Todo.belongsTo(User,{
-  foreignKey:"UserId",
+Todo.belongsTo(User, {
+  foreignKey: "UserId",
 });
 
 //create session store that save sessions to db
 //this session store will let us save our session inside db by utilizing sequelize
 //it will hanlde session key expiraton automatically
 const sessionStore = new SequelizeStore({
-  db:sequelize,
-})
+  db: sequelize,
+});
 
 //initialize db
 async function initializeDatabase() {
@@ -132,7 +127,6 @@ async function initializeDatabase() {
 
     sequelize.sync({ alter: false });
     sessionStore.sync();
-    
   } catch (error) {
     console.error(error);
   }
@@ -146,13 +140,72 @@ app.use(
   })
 );
 
-
-
 //middleware for session
 
-app.use(session({
-  secret:process.env.COOKIES_SECRET_KEY
-}));
+app.use(
+  session({
+    secret: process.env.COOKIES_SECRET_KEY, //used to sign session cookies
+    resave: false, //resave session if it is not modified
+    saveUninitialized: false, //don't save uninitialized session
+    store: sessionStore, //use the session store we created
+    cookie: {
+      secure: process.env.ENVIRONMENT === "development", //set to true if using https
+      httpOnly: true, //prevent client side js from accessing the cookie
+      maxAge: 1000 * 60 * 5, //set cookie to expire in 5 minutes
+    },
+  })
+);
+
+//PASSPORT JS CONFIGURATION
+app.use(passport.initialize()); //initialize passport
+app.use(passport.session()); //use passport session
+
+//serialization:what data do you want to store inside your session
+//this will only run when a user logs in - we only store the user ID in the session
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+
+
+//deserialzation: how are you going to retrieve user on=bject from the session data
+//this will run on every request for the authentuication
+passport.deserializeUser(async(id, done) =>{
+//fetch full user from db based on the serialized id
+try{
+  const user = await User.findByPk(id);
+  done(null, user);
+}
+catch{
+done(error, null);
+}
+});
+
+//LOCAL STRATEGY
+passport.use(
+  new LocalStrategy(
+    {usernameField: "email", passwordField: 'password'},
+     async(email, password, done) =>  {
+      try{
+        //find the user with matching email and password
+        const user = await findOne({
+          where : {
+            email: email,
+            provider:'local',
+          },
+        });
+        //if no user is found
+        if(!user){
+          return done(null,false,
+            {message:"invalid email or passord"});
+        }
+
+      } catch(error){
+
+      }
+  })
+);
+
 
 
 app.use(express.json());
