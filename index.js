@@ -3,6 +3,7 @@ import crypto from "crypto";
 const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
+import dotenv from "dotenv";
 import { DataTypes, Sequelize } from "sequelize";
 import passport from "passport";
 import session from "express-session";
@@ -150,7 +151,7 @@ app.use(
 //middleware for session
 
 app.use(session({
-  secret:""
+  secret:process.env.COOKIES_SECRET_KEY
 }));
 
 
