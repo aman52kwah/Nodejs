@@ -5,6 +5,16 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import { DataTypes, Sequelize } from "sequelize";
 import passport from "passport";
+import session from "express-session";
+import connectSessionSequelize from "connect-session-sequelize";
+const SequelizeStore = connectSessionSequelize(session.Store);
+
+
+
+
+
+
+//middleware
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({
   extended: false,
@@ -83,7 +93,7 @@ const Todo = sequelize.define(
     //add a foreign key to link to user single todo
     userId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: User, // refers to table name
         key: "id", // refers to column name in Users table
@@ -106,12 +116,22 @@ Todo.belongsTo(User,{
   foreignKey:"UserId",
 });
 
+//create session store that save sessions to db
+//this session store will let us save our session inside db by utilizing sequelize
+//it will hanlde session key expiraton automatically
+const sessionStore = new SequelizeStore({
+  db:sequelize,
+})
+
+//initialize db
 async function initializeDatabase() {
   try {
     await sequelize.authenticate();
     console.log("Connection has been established successfully.");
 
-    sequelize.sync({ alter: false }); // force: true will drop the table if it already exists
+    sequelize.sync({ alter: false });
+    sessionStore.sync();
+    
   } catch (error) {
     console.error(error);
   }
@@ -124,6 +144,15 @@ app.use(
     credentials: true,
   })
 );
+
+
+
+//middleware for session
+
+app.use(session({
+  secret:""
+}));
+
 
 app.use(express.json());
 
