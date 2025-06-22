@@ -1,9 +1,8 @@
 import express from "express";
-import crypto from "crypto";
 const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
-import dotenv from "dotenv";
+import 'dotenv/config';
 import { DataTypes, Sequelize } from "sequelize";
 import passport from "passport";
 import session from "express-session";
@@ -145,11 +144,11 @@ app.use(
 app.use(
   session({
     secret: process.env.COOKIES_SECRET_KEY, //used to sign session cookies
-    resave: false, //resave session if it is not modified
-    saveUninitialized: false, //don't save uninitialized session
+    resave: true, //resave session if it is not modified
+    saveUninitialized: true, //don't save uninitialized session
     store: sessionStore, //use the session store we created
     cookie: {
-      secure: process.env.ENVIRONMENT === "development", //set to true if using https
+      secure:process.env.ENVIRONMENT, //set to true if using https
       httpOnly: true, //prevent client side js from accessing the cookie
       maxAge: 1000 * 60 * 5, //set cookie to expire in 5 minutes
     },
@@ -166,47 +165,72 @@ passport.serializeUser((user, done) => {
   done(null, user.id);
 });
 
-
-
 //deserialzation: how are you going to retrieve user on=bject from the session data
 //this will run on every request for the authentuication
-passport.deserializeUser(async(id, done) =>{
-//fetch full user from db based on the serialized id
-try{
-  const user = await User.findByPk(id);
-  done(null, user);
-}
-catch{
-done(error, null);
-}
+passport.deserializeUser(async (id, done) => {
+  //fetch full user from db based on the serialized id
+  try {
+    const user = await User.findByPk(id);
+    done(null, user);
+  } catch {
+    done(error, null);
+  }
 });
 
 //LOCAL STRATEGY
 passport.use(
   new LocalStrategy(
-    {usernameField: "email", passwordField: 'password'},
-     async(email, password, done) =>  {
-      try{
+    { usernameField: "email", passwordField: "password" },
+    async (email, password, done) => {
+      try {
         //find the user with matching email and password
         const user = await findOne({
-          where : {
+          where: {
             email: email,
-            provider:'local',
+          
+            provider: "local",
           },
         });
         //if no user is found
-        if(!user){
-          return done(null,false,
-            {message:"invalid email or passord"});
+        if (!user) {
+          return done(null, false, { message: "invalid email or passord" });
         }
-
-      } catch(error){
-
-      }
-  })
+        //if user is found, check if the password matches
+       
+       return done(null, user);
+      } catch (error) {}
+    }
+  )
 );
 
 
+
+
+
+
+const requireAuth =(req,res,next)=>{
+  if(req.isAuthenticated()){
+    //passport.js method to check if user is logged in
+   return next();
+  } 
+  // user is not authenticated, return error
+  res.status(401).json({message:"Authentication required"});
+};
+
+// user registration endpoint
+app.post('/auth/register', async (req, res)=>{
+ try{
+  const {email, password, username} =req.body;
+  if(!email || !password || !username){
+    return res.status(400).json(
+      {message:"All fields are required"});
+  }
+
+  return res.json(req.body);
+ }catch(error){
+
+ }
+})
 
 app.use(express.json());
 
@@ -225,7 +249,7 @@ app.use("/todo", (req, res, next) => {
 // Sample todo items array -> this is our db
 let todoItems = [];
 
-app.get("/", async (req, res, nextFunction) => {
+app.get("/", passport.authenticate("local"), async (req, res, nextFunction) => {
   try {
     const data = await Todo.findAll();
     return res.json(data);
