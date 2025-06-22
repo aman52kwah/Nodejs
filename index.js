@@ -21,8 +21,10 @@ app.use(urlencodedParser);
 //authentication packages
 import LocalStrategy from "passport-local";
 
-const sequelize = new Sequelize("todo_db", "MIKE", "AfiaSarpong@55", {
-  host: "localhost",
+const sequelize = new Sequelize("todo_db", 
+  process.env.DB_USER, 
+  process.env.DB_PASSWORD, {
+  host: process.env.DB_HOST,
   dialect: "mysql",
 });
 
