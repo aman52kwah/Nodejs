@@ -2,12 +2,13 @@ import express from "express";
 const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
-import 'dotenv/config';
+import "dotenv/config";
 import { DataTypes, Sequelize } from "sequelize";
 import passport from "passport";
 import session from "express-session";
 import connectSessionSequelize from "connect-session-sequelize";
 const SequelizeStore = connectSessionSequelize(session.Store);
+import bcrypt from "bcrypt";
 
 //middleware
 const jsonParser = bodyParser.json();
@@ -21,12 +22,16 @@ app.use(urlencodedParser);
 //authentication packages
 import LocalStrategy from "passport-local";
 
-const sequelize = new Sequelize("todo_db", 
-  process.env.DB_USER, 
-  process.env.DB_PASSWORD, {
-  host: process.env.DB_HOST,
-  dialect: "mysql",
-});
+const sequelize = new Sequelize(
+  "todo_db",
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: "mysql",
+    logging:console.log,// log all SQL queries to console
+  }
+);
 
 //USER MODEL
 const User = sequelize.define(
@@ -87,15 +92,16 @@ const Todo = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-    //add a foreign key to link to user single todo
-    userId: {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: User, // refers to table name
-        key: "id", // refers to column name in Users table
-      },
-    },
+   // add a foreign key to link to user single todo
+    // UserId: {
+    //   type: DataTypes.UUID,
+    //   allowNull:false,
+    //   defaultValue: true,
+    //   referencres: {
+    //     model: User, // refers to table name
+    //     key: "id", // refers to column name in Users table
+    //   },
+    // },
   },
   {
     tableName: "todos",
@@ -126,7 +132,7 @@ async function initializeDatabase() {
     await sequelize.authenticate();
     console.log("Connection has been established successfully.");
 
-    sequelize.sync({ alter: false });
+    await sequelize.sync({ force: true });
     sessionStore.sync();
   } catch (error) {
     console.error(error);
@@ -142,17 +148,17 @@ app.use(
 );
 
 //middleware for session
-
+app.use(express.json());
 app.use(
   session({
     secret: process.env.COOKIES_SECRET_KEY, //used to sign session cookies
-    resave: true, //resave session if it is not modified
-    saveUninitialized: true, //don't save uninitialized session
+    resave: false, //resave session if it is not modified
+    saveUninitialized: false, //don't save uninitialized session
     store: sessionStore, //use the session store we created
     cookie: {
-      secure:process.env.ENVIRONMENT, //set to true if using https
+      secure: process.env.ENVIRONMENT==="production", //set to true if using https
       httpOnly: true, //prevent client side js from accessing the cookie
-      maxAge: 1000 * 60 * 5, //set cookie to expire in 5 minutes
+      maxAge: 24 * 60 *60 * 1000, //set cookie to expire in 5 minutes
     },
   })
 );
@@ -186,11 +192,11 @@ passport.use(
     async (email, password, done) => {
       try {
         //find the user with matching email and password
-        const user = await findOne({
+        const user = await User.findOne({
           where: {
             email: email,
-          
-            provider: "local",
+
+            provider:"local"
           },
         });
         //if no user is found
@@ -198,43 +204,142 @@ passport.use(
           return done(null, false, { message: "invalid email or passord" });
         }
         //if user is found, check if the password matches
-       
-       return done(null, user);
-      } catch (error) {}
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+          return done(null, false, { message: "invalid email or password" });
+        }
+        // if success
+        return done(null, user);
+      } catch (error) {
+        done(error);
+      }
     }
   )
 );
 
-
-
-
-
-
-const requireAuth =(req,res,next)=>{
-  if(req.isAuthenticated()){
+const requireAuth = (req, res, next) => {
+  if (req.isAuthenticated()) {
     //passport.js method to check if user is logged in
-   return next();
-  } 
+    return next();
+  }
   // user is not authenticated, return error
-  res.status(401).json({message:"Authentication required"});
+  res.status(401).json({ message: "Authentication required" });
+};
+const requireAuthAdmin = (req, res, next) => {
+  if (req.isAuthenticated() && req.user.role === "admin") {
+    //passport.js method to check if user is logged in
+    //User is authenticated, proceed to next middleware
+    return next();
+  }
+  //user not authenticated, return error
+  res.status(401).json({ message: "Admin role required" });
 };
 
 // user registration endpoint
-app.post('/auth/register', async (req, res)=>{
- try{
-  const {email, password, username} =req.body;
-  if(!email || !password || !username){
-    return res.status(400).json(
-      {message:"All fields are required"});
+app.post("/auth/register", async (req, res) => {
+  try {
+    console.log("isAuthenticated: ", req.cookies);
+    if (req.isAuthenticated()) {
+      return res.status(400).json({ message: "you are already logged in" });
+    }
+    const { email, password, username } = req.body;
+
+    if (!email || !password || !username) {
+      return res.status(400).json({
+        message: "Include all fields",
+      });
+    }
+    //check for exsisting user
+    const existingUser = await User.findOne({
+      where: {
+        email,
+        username,
+      },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exist" });
+    }
+    //let hash the password before saving it in the db
+    //the hgih the salting , the more computation power it needs
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    //create a new user with the hashed password
+    const user = await User.create({
+      email,
+      username,
+      password: hashedPassword,
+      //role:"admin",
+      provider: "local",
+    });
+    req.logIn(user, (error) => {
+      if (error) {
+        return res.status(500).json({ message: "error logging in the user" });
+      }
+      return res.status(201).json({
+        message: "User created successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+        },
+      });
+    });
+  } catch (error) {
+    res.status(500).json({ message: "error creating user" });
   }
+});
+//USER LOGIN ROUTE
+//passport.authenticate("local") runs our local strategy
+app.post('/auth/login', passport.authenticate("local"), (req, res) => {
+  //if we reach this funcion, authentication was successful
+  //req.user contains the authenticated user object
+  res.json({
+    success:true,
+    message: "Login successful",
+    user:req.user,
+  });
+});
 
-  return res.json(req.body);
- }catch(error){
 
- }
-})
+//USER LOGOUT ROUTE
+app.post("/auth/logout",(req, res) => {
+  req.logout((err) => {
+    //passport.js method to clear session
+    if(err){
+      return res.status(500).json({message:"Error logging out"});
+    }
+    res.json({message:"logout sucessful"});
+  });
+});
 
-app.use(express.json());
+//GET CURRENT USER INFO
+//This route tells the frontend if a user is currently logged in
+app.get("/auth/me", (req,res) => {
+  if(req.isAuthenticated()){
+    res.json({
+      user:{
+        id:req.user.id,
+        email: req.user.email,
+        username: req.user.username,
+        displayName: req.user.displayName,
+        provider:req.user.provider,
+      },
+    });
+  } else{
+    res.status(401).json({message:"Not authenticated"});
+  }
+});
+
+
+
+// ==================================================================================
+// PROTECTED TODO ROUTES
+// All routes below user requireAuth middleware, meaning users must logged
+// ==================================================================================
+
+// GET ALL TODOS FOR AUTHENTICATED USER
+
 
 app.use("/todo", (req, res, next) => {
   if (req.method === "POST") {
@@ -249,11 +354,20 @@ app.use("/todo", (req, res, next) => {
 });
 
 // Sample todo items array -> this is our db
-let todoItems = [];
 
-app.get("/", passport.authenticate("local"), async (req, res, nextFunction) => {
+
+app.get("/", requireAuth, async (req, res) => {
   try {
-    const data = await Todo.findAll();
+    //find all todos belonging to the current  user
+    //req.user.id is available becuase of the passport deserializer
+       console.log('Fetching todos for user:', req.user.id);
+        console.log('=== FETCHING TODOS ===');
+    console.log('User ID:', req.user.id);
+    console.log('User object:', req.user);
+    const data = await Todo.findAll({
+      where:{userId:req.user.id},
+    });
+    console.log('Found todos:', Todo.length);
     return res.json(data);
   } catch (error) {
     return res.status(500).json({
@@ -263,36 +377,58 @@ app.get("/", passport.authenticate("local"), async (req, res, nextFunction) => {
   }
 });
 
-app.post("/login", (req, res, nextFunction) => {
-  return res.json({ token: "qwertyuiop" });
-});
-
-app.post("/todo", (req, res) => {
+//CREATE NEW TODO
+app.post("/todo",requireAuth, async (req, res) => {
   try {
     const { title, description } = req.body;
-    const todoItem = { title, description, isDone: false };
+    // Create todo object with user ID from authenticated user
+    const userId = req.user.id;
+    const todoItem = {
+       title, 
+       description,
+        isDone: false,
+      UserId:userId// Asspoiate todo
+      };
     //instead of pushing to the array, create using db
-    Todo.create(todoItem);
+ const createdTodo = await Todo.create(todoItem);
 
     res.status(201);
     return res.json({
       message: "Todo has been added",
       isSuccessful: true,
-      data: todoItem,
+      data: createdTodo,
     });
   } catch (error) {
     console.error("error creating todo", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error",
+      error:error.message,
+     });
   }
 });
 
-app.get("/todo/:id", async (req, res) => {
+
+
+
+//GET SPECIFIC TODO BY ID
+
+
+app.get("/todo/:id",requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const todoItem = await Todo.findByPk(id);
+      // find todo by ID and user ID (security measure)
+      // this measuer ensures users can only access their own todos
+    const todoItem = await Todo.findOne({
+      where:{
+        id,
+        userId: req.user.id, // this crucial for security
+      },
+    });
     if (!todoItem) {
-      throw new Error("failed to fetch todo item");
+      return res.status(404).json({
+        message:"Todo item not found",
+        isSuccessful: false,
+      });
     }
 
     return res.status(200).json({
@@ -308,29 +444,40 @@ app.get("/todo/:id", async (req, res) => {
   }
 });
 
-app.put("/todo", async (req, res) => {
+// UPDATE TODO
+
+app.put("/todo", requireAuth, async (req, res) => {
   try {
     const { id, title, description, isDone } = req.body;
 
-    //find a todo item using findByPk in the database
-    const todo = await Todo.findByPk(id);
-    //if not found , then go ahead and bounce the user
-    if (!todo) {
-      throw new Error("Todo item not found");
-    }
+    /// update todo, but only if it belongs to the current user
+    const [updatedRowsCount]= await Todo.update(
 
-    //if the todo is found, go ahead and update it
-    const updatedTodoItem = await todo.update({
-      id,
-      title,
-      description,
-      isDone,
-    });
+      {
+        title,
+        description,
+        isDone,
+      },
+      {
+        where:{
+          id,
+          userId: req.user.id, // security: only update users own todos
+        },
+      }
+    );
+   
+    // if no rows were updated, either todo doesnt exist
+    if(updatedRowsCount === 0){
+      return res.status(404).json({
+        message:
+        "Todo item not found or you dont have permission to update",
+        isSuccessful:false,
+      });
+    }
 
     res.status(200).json({
       isSuccessful: true,
       message: "Successfully updated the todo item",
-      data: updatedTodoItem.dataValues,
     });
   } catch (error) {
     console.error(error);
@@ -365,20 +512,40 @@ app.put("/todo", async (req, res) => {
 //   });
 // });
 
-app.delete("/todo/:id", (req, res) => {
-  const { id } = req.params;
-  console.log(id);
-  let todoItem = todoItems.find((value) => value.id === id);
-  if (!todoItem) {
-    return res.status(404).json({ message: "Todo item not found" });
-  }
+//DELETE TODO
 
-  const newTodos = todoItems.filter((item) => item.id !== id);
-  todoItems = newTodos;
-  return res.status(200).json({
-    message: "deleted successfully",
-  });
+app.delete("/todo/:id", requireAuth, async (req, res) => {
+  
+  try{
+const {id} = req.params;
+// delete todo, but if it belongs to a user
+const deletedRowsCount = await Todo.destroy({
+  where:{
+    id,
+    userId:req.user.id,// security: only delete todo for a user
+  },
 });
+
+// if no rows deleted, either todo doesnt exist
+if(deletedRowsCount === 0){
+  return res.status(404).json({
+    messgae:
+    "todo item not found or you dont have permission"
+  });
+}
+return res.status(200).json({
+  message:"deleted successfully",
+});
+  } catch(error){
+ console.error("Error deleting todo:", error);
+ return res.status(500).json({
+  message:"Error deleting todo item",
+  error:error.message,
+ });
+  } 
+  
+});
+
 
 app.listen("5000", (error) => {
   if (error) {
