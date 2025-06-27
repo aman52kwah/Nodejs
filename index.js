@@ -142,8 +142,14 @@ initializeDatabase();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
-    credentials: true,
+    origin: [
+    'http://localhost:5173',  // Local development
+    'http://localhost:3000', // Alternative local port
+    'https://todoapp-omega-blond-72.vercel.app' // Your production frontend
+  ],
+  credentials: true, // If you're using cookies/sessions
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
   })
 );
 
