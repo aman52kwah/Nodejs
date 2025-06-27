@@ -140,15 +140,16 @@ async function initializeDatabase() {
 }
 initializeDatabase();
 
-const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? ['https://todoapp-omega-blond-72.vercel.app']
-  : ['http://localhost:5173', 'http://localhost:5000'];
 // CORS configuration
 // This allows your frontend to make requests to the backend
 
 app.use(
   cors({
-    origin:allowedOrigins, // Allow requests from these origins
+    origin:[
+    'http://localhost:5173',                           // Local development
+    'http://localhost:3000',                           // Alternative local port
+    'https://todoapp-omega-blond-72.vercel.app'        // Your production frontend
+  ], // Allow requests from these origins
   credentials: true, // If you're using cookies/sessions
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
