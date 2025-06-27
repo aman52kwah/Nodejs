@@ -142,7 +142,7 @@ initializeDatabase();
 
 const allowedOrigins = process.env.NODE_ENV === 'production' 
   ? ['https://todoapp-omega-blond-72.vercel.app']
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:5000'];
 // CORS configuration
 // This allows your frontend to make requests to the backend
 
