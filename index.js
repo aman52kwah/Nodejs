@@ -313,12 +313,18 @@ app.post('/auth/login', passport.authenticate("local"), (req, res) => {
 
 //USER LOGOUT ROUTE
 app.post("/auth/logout",(req, res) => {
-  req.logout((err) => {
+  req.session.destroy((err) => { 
     //passport.js method to clear session
     if(err){
-      return res.status(500).json({message:"Error logging out"});
+      return res.status(500).json({message:"Error logging out",
+        isSuccessful:false,
+      });
     }
-    res.json({message:"logout sucessful"});
+     res.clearCookie('connect.sid');
+    res.json({message:"logout sucessful",
+      isSuccessfull:true
+    });
+   
   });
 });
 
