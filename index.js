@@ -243,7 +243,7 @@ const requireAuthAdmin = (req, res, next) => {
   //user not authenticated, return error
   res.status(401).json({ message: "Admin role required" });
 };
-
+ 
 // user registration endpoint
 app.post("/auth/register", async (req, res) => {
   try {
