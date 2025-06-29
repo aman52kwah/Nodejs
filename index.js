@@ -2,7 +2,8 @@ import express from "express";
 const app = express();
 import cors from "cors";
 import bodyParser from "body-parser";
-import "dotenv/config";
+import "dotenv/config"; // Load environment variables from .env file
+//dotenv is used to load environment variables from .env file
 import { DataTypes, Sequelize } from "sequelize";
 import passport from "passport";
 import session from "express-session";
@@ -31,7 +32,7 @@ const sequelize = new Sequelize(process.env.DATABASE_URL,{
     }
   },
 });
-
+console.log('DATABASE_URL:', process.env.DATABASE_URL);
 //USER MODEL
 const User = sequelize.define(
   "User",
