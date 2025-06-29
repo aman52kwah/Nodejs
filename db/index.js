@@ -1,12 +1,15 @@
 import { Sequelize } from "sequelize";
 
 async function setupDatabase() {
-  const sequelize = new Sequelize("","MIKE","AfiaSarpong@55"
-   ,
-    {
-      host: 'localhost',
-      dialect: "mysql",
-    });
+  const sequelize = new Sequelize(process.env.DB_URL,{
+  dailect:'postgres',
+  dialectOptions:{
+    ssl:{
+      require:true,
+      rejectUnauthorized: false, // This is important for self-signed certificates
+    }
+  },
+});
 
   try {
     await sequelize.authenticate();

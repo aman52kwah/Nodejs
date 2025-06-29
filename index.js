@@ -22,16 +22,15 @@ app.use(urlencodedParser);
 //authentication packages
 import LocalStrategy from "passport-local";
 
-const sequelize = new Sequelize(
-  "todo_db",
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    dialect: "mysql",
-    logging:console.log,// log all SQL queries to console
-  }
-);
+const sequelize = new Sequelize(process.env.DATABASE_URL,{
+  dailect:'postgres',
+  dialectOptions:{
+    ssl:{
+      require:true,
+      rejectUnauthorized: false, // This is important for self-signed certificates
+    }
+  },
+});
 
 //USER MODEL
 const User = sequelize.define(
@@ -129,10 +128,13 @@ const sessionStore = new SequelizeStore({
 //initialize db
 async function initializeDatabase() {
   try {
+    //test connection to the database
     await sequelize.authenticate();
-    console.log("Connection has been established successfully.");
+    console.log("Neon postgresSQL connection established successfuly.");
 
-    await sequelize.sync({ force: true });
+    //sync the models with the database
+    await sequelize.sync({ alter: true });
+    console.log("Database synchronized successfully.");
     sessionStore.sync();
   } catch (error) {
     console.error(error);
