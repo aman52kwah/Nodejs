@@ -145,19 +145,39 @@ initializeDatabase();
 
 // CORS configuration
 // This allows your frontend to make requests to the backend
+const corsOptions ={
+  origin: function(origin, callback) {
+    // Allow requests from the specified origins
+    const allowedOrigins = [
+      process.env.FRONTED_URL,                           // Local development
+      'http://localhost:3000',                           // Alternative local port
+      'https://localhost'        // Your production frontend
+    ];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  optionsSuccessStatus: 200, // For legacy browser support{
+    credentials: true, // If you're using cookies/sessions
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  }
+// Allow requests from these origins
+// credentials: true, // If you're using cookies/sessionsr
+  app.options('*',cors(corsOptions));
+app.use(cors(corsOptions));
+  // cors({
+  //   origin:[
+  //   process.env.FRONTED_URL,                           // Local development
+  //   'http://localhost:3000',                           // Alternative local port
+  //   'https://todoapp-omega-blond-72.vercel.app'        // Your production frontend
+  // ], // Allow requests from these origins
+  // credentials: true, // If you're using cookies/sessions
+  // methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  // allowedHeaders: ['Content-Type', 'Authorization']
+  // })
 
-app.use(
-  cors({
-    origin:[
-    'http://localhost:5173',                           // Local development
-    'http://localhost:3000',                           // Alternative local port
-    'https://todoapp-omega-blond-72.vercel.app'        // Your production frontend
-  ], // Allow requests from these origins
-  credentials: true, // If you're using cookies/sessions
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-  })
-);
 
 //middleware for session
 app.use(express.json());
