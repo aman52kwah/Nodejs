@@ -336,7 +336,7 @@ app.post("/auth/logout", (req, res) => {
 //GET CURRENT USER INFO
 //This route tells the frontend if a user is currently logged in
 app.get("/auth/me", (req, res) => {
-  if (req.session && req.session.userId) {
+  if (isAuthenticated()) {
     res.json({
       user: {
         id: req.user.id,
