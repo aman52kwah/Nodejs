@@ -17,8 +17,7 @@ const urlencodedParser = bodyParser.urlencoded({
   extended: false,
 });
 
-app.use(jsonParser);
-app.use(urlencodedParser);
+
 
 //authentication packages
 import LocalStrategy from "passport-local";
@@ -187,7 +186,12 @@ app.use(
     },
   })
 );
-
+app.use((req, res, next) => {
+  console.log('Request Origin:', req.headers.origin);
+  next();
+});
+app.use(jsonParser);
+app.use(urlencodedParser);
 //PASSPORT JS CONFIGURATION
 app.use(passport.initialize()); //initialize passport
 app.use(passport.session()); //use passport session
