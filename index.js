@@ -163,7 +163,8 @@ app.use(
     origin: [
       process.env.FRONTED_URL,                           // Local development
       'http://localhost:3000',                           // Alternative local port
-      'http://localhost:5173'        // Your production frontend
+      'http://localhost:5173',
+      'https://todoapp-omega-blond-72.vercel.app'        // Your production frontend
     ], // Allow requests from these origins
     credentials: true, // If you're using cookies/sessions
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
