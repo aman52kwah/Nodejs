@@ -136,51 +136,40 @@ initializeDatabase();
 
 // CORS configuration
 // This allows your frontend to make requests to the backend
-// const corsOptions = {
-//   origin: function (origin, callback) {
-//     // Allow requests from the specified origins
-//     const allowedOrigins = [
-//       process.env.FRONTED_URL, // Local development
-//       "http://localhost:3000", // Alternative local port
-//       "http://localhost:5173", // Your production frontend
-//     ];
-//     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error("Not allowed by CORS"));
-//     }
-//   },
-//   optionsSuccessStatus: 200, // For legacy browser support{
-//   credentials: true, // If you're using cookies/sessions
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-// };
-// // Allow requests from these origins
-// // credentials: true, // If you're using cookies/sessionsr
-// app.options("*", cors(corsOptions));
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://todoapp-omega-blond-72.vercel.app',
+  process.env.FRONTED_URL
+];
+
 app.use(
   cors({
-    origin: [
-      process.env.FRONTED_URL,                           // Local development
-      'http://localhost:3000',                           // Alternative local port
-      'http://localhost:5173',
-      'https://todoapp-omega-blond-72.vercel.app'        // Your production frontend
-    ], // Allow requests from these origins
-    credentials: true, // If you're using cookies/sessions
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, etc.)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
   })
 );
+
+
 
 //middleware for session
 app.use(express.json());
 app.use(
   session({
-    secret: process.env.COOKIES_SECRET_KEY, //used to sign session cookies
+    secret: process.env.SECRET_SESSION || 'fallbacksecret', //used to sign session cookies
     resave: false, //resave session if it is not modified
     saveUninitialized: false, //don't save uninitialized session
     store: sessionStore, //use the session store we created
     cookie: {
       secure: process.env.ENVIRONMENT === "production", //set to true if using https
+      sameSite:'lax', //allow cookies to be sent with cross-site requests
       httpOnly: true, //prevent client side js from accessing the cookie
       maxAge: 24 * 60 * 60 * 1000, //set cookie to expire in 5 minutes
     },
