@@ -168,8 +168,8 @@ app.use(
     saveUninitialized: false, //don't save uninitialized session
     store: sessionStore, //use the session store we created
     cookie: {
-      secure: process.env.ENVIRONMENT === "production", //set to true if using https
-      sameSite:'lax', //allow cookies to be sent with cross-site requests
+      secure: process.env.NODE_ENV === "production", //set to true if using https
+      sameSite:process.env.NODE_ENV === 'production' ? 'none' : 'lax', //allow cookies to be sent with cross-site requests
       httpOnly: true, //prevent client side js from accessing the cookie
       maxAge: 24 * 60 * 60 * 1000, //set cookie to expire in 5 minutes
     },
