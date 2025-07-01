@@ -23,16 +23,17 @@ app.use(urlencodedParser);
 //authentication packages
 import LocalStrategy from "passport-local";
 
-const sequelize = new Sequelize(process.env.DATABASE_URL,{
-  dailect:'postgres',
-  dialectOptions:{
-    ssl:{
-      require:true,
+
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: "postgres",
+  dialectOptions: {
+    ssl: {
+      require: true,
       rejectUnauthorized: false, // This is important for self-signed certificates
-    }
+    },
   },
 });
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
 //USER MODEL
 const User = sequelize.define(
   "User",
@@ -92,16 +93,7 @@ const Todo = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
-   // add a foreign key to link to user single todo
-    // UserId: {
-    //   type: DataTypes.UUID,
-    //   allowNull:false,
-    //   defaultValue: true,
-    //   referencres: {
-    //     model: User, // refers to table name
-    //     key: "id", // refers to column name in Users table
-    //   },
-    // },
+  
   },
   {
     tableName: "todos",
@@ -145,39 +137,39 @@ initializeDatabase();
 
 // CORS configuration
 // This allows your frontend to make requests to the backend
-const corsOptions ={
-  origin: function(origin, callback) {
-    // Allow requests from the specified origins
-    const allowedOrigins = [
+// const corsOptions = {
+//   origin: function (origin, callback) {
+//     // Allow requests from the specified origins
+//     const allowedOrigins = [
+//       process.env.FRONTED_URL, // Local development
+//       "http://localhost:3000", // Alternative local port
+//       "http://localhost:5173", // Your production frontend
+//     ];
+//     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error("Not allowed by CORS"));
+//     }
+//   },
+//   optionsSuccessStatus: 200, // For legacy browser support{
+//   credentials: true, // If you're using cookies/sessions
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+// };
+// // Allow requests from these origins
+// // credentials: true, // If you're using cookies/sessionsr
+// app.options("*", cors(corsOptions));
+app.use(
+  cors({
+    origin: [
       process.env.FRONTED_URL,                           // Local development
       'http://localhost:3000',                           // Alternative local port
-      'https://localhost'        // Your production frontend
-    ];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  optionsSuccessStatus: 200, // For legacy browser support{
+      'http://localhost:5173'        // Your production frontend
+    ], // Allow requests from these origins
     credentials: true, // If you're using cookies/sessions
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-  }
-// Allow requests from these origins
-// credentials: true, // If you're using cookies/sessionsr
-  app.options('*',cors(corsOptions));
-app.use(cors(corsOptions));
-  // cors({
-  //   origin:[
-  //   process.env.FRONTED_URL,                           // Local development
-  //   'http://localhost:3000',                           // Alternative local port
-  //   'https://todoapp-omega-blond-72.vercel.app'        // Your production frontend
-  // ], // Allow requests from these origins
-  // credentials: true, // If you're using cookies/sessions
-  // methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  // allowedHeaders: ['Content-Type', 'Authorization']
-  // })
-
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
 
 //middleware for session
 app.use(express.json());
@@ -188,9 +180,9 @@ app.use(
     saveUninitialized: false, //don't save uninitialized session
     store: sessionStore, //use the session store we created
     cookie: {
-      secure: process.env.ENVIRONMENT==="production", //set to true if using https
+      secure: process.env.ENVIRONMENT === "production", //set to true if using https
       httpOnly: true, //prevent client side js from accessing the cookie
-      maxAge: 24 * 60 *60 * 1000, //set cookie to expire in 5 minutes
+      maxAge: 24 * 60 * 60 * 1000, //set cookie to expire in 5 minutes
     },
   })
 );
@@ -228,7 +220,7 @@ passport.use(
           where: {
             email: email,
 
-            provider:"local"
+            provider: "local",
           },
         });
         //if no user is found
@@ -266,7 +258,7 @@ const requireAuthAdmin = (req, res, next) => {
   //user not authenticated, return error
   res.status(401).json({ message: "Admin role required" });
 };
- 
+
 // user registration endpoint
 app.post("/auth/register", async (req, res) => {
   try {
@@ -323,53 +315,47 @@ app.post("/auth/register", async (req, res) => {
 });
 //USER LOGIN ROUTE
 //passport.authenticate("local") runs our local strategy
-app.post('/auth/login', passport.authenticate("local"), (req, res) => {
+app.post("/auth/login", passport.authenticate("local"), (req, res) => {
   //if we reach this funcion, authentication was successful
   //req.user contains the authenticated user object
   res.json({
-    success:true,
+    success: true,
     message: "Login successful",
-    user:req.user,
+    user: req.user,
   });
 });
 
-
 //USER LOGOUT ROUTE
-app.post("/auth/logout",(req, res) => {
-  req.session.destroy((err) => { 
+app.post("/auth/logout", (req, res) => {
+  req.session.destroy((err) => {
     //passport.js method to clear session
-    if(err){
-      return res.status(500).json({message:"Error logging out",
-        isSuccessful:false,
-      });
+    if (err) {
+      return res
+        .status(500)
+        .json({ message: "Error logging out", isSuccessful: false });
     }
-     res.clearCookie('connect.sid');
-    res.json({message:"logout sucessful",
-      isSuccessfull:true
-    });
-   
+    res.clearCookie("connect.sid");
+    res.json({ message: "logout sucessful", isSuccessfull: true });
   });
 });
 
 //GET CURRENT USER INFO
 //This route tells the frontend if a user is currently logged in
-app.get("/auth/me", (req,res) => {
-  if(req.isAuthenticated()){
+app.get("/auth/me", (req, res) => {
+  if (req.isAuthenticated()) {
     res.json({
-      user:{
-        id:req.user.id,
+      user: {
+        id: req.user.id,
         email: req.user.email,
         username: req.user.username,
         displayName: req.user.displayName,
-        provider:req.user.provider,
+        provider: req.user.provider,
       },
     });
-  } else{
-    res.status(401).json({message:"Not authenticated"});
+  } else {
+    res.status(401).json({ message: "Not authenticated" });
   }
 });
-
-
 
 // ==================================================================================
 // PROTECTED TODO ROUTES
@@ -377,7 +363,6 @@ app.get("/auth/me", (req,res) => {
 // ==================================================================================
 
 // GET ALL TODOS FOR AUTHENTICATED USER
-
 
 app.use("/todo", (req, res, next) => {
   if (req.method === "POST") {
@@ -393,19 +378,18 @@ app.use("/todo", (req, res, next) => {
 
 // Sample todo items array -> this is our db
 
-
 app.get("/", requireAuth, async (req, res) => {
   try {
     //find all todos belonging to the current  user
     //req.user.id is available becuase of the passport deserializer
-       console.log('Fetching todos for user:', req.user.id);
-        console.log('=== FETCHING TODOS ===');
-    console.log('User ID:', req.user.id);
-    console.log('User object:', req.user);
+    console.log("Fetching todos for user:", req.user.id);
+    console.log("=== FETCHING TODOS ===");
+    console.log("User ID:", req.user.id);
+    console.log("User object:", req.user);
     const data = await Todo.findAll({
-      where:{userId:req.user.id},
+      where: { userId: req.user.id },
     });
-    console.log('Found todos:', Todo.length);
+    console.log("Found todos:", Todo.length);
     return res.json(data);
   } catch (error) {
     return res.status(500).json({
@@ -416,19 +400,19 @@ app.get("/", requireAuth, async (req, res) => {
 });
 
 //CREATE NEW TODO
-app.post("/todo",requireAuth, async (req, res) => {
+app.post("/todo", requireAuth, async (req, res) => {
   try {
     const { title, description } = req.body;
     // Create todo object with user ID from authenticated user
     const userId = req.user.id;
     const todoItem = {
-       title, 
-       description,
-        isDone: false,
-      UserId:userId// Asspoiate todo
-      };
+      title,
+      description,
+      isDone: false,
+      UserId: userId, // Asspoiate todo
+    };
     //instead of pushing to the array, create using db
- const createdTodo = await Todo.create(todoItem);
+    const createdTodo = await Todo.create(todoItem);
 
     res.status(201);
     return res.json({
@@ -438,33 +422,29 @@ app.post("/todo",requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error("error creating todo", error);
-    return res.status(500).json({ message: "Internal server error",
-      error:error.message,
-     });
+    return res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 });
 
-
-
-
 //GET SPECIFIC TODO BY ID
 
-
-app.get("/todo/:id",requireAuth, async (req, res) => {
+app.get("/todo/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
-      // find todo by ID and user ID (security measure)
-      // this measuer ensures users can only access their own todos
+    // find todo by ID and user ID (security measure)
+    // this measuer ensures users can only access their own todos
     const todoItem = await Todo.findOne({
-      where:{
+      where: {
         id,
         userId: req.user.id, // this crucial for security
       },
     });
     if (!todoItem) {
       return res.status(404).json({
-        message:"Todo item not found",
+        message: "Todo item not found",
         isSuccessful: false,
       });
     }
@@ -489,27 +469,25 @@ app.put("/todo", requireAuth, async (req, res) => {
     const { id, title, description, isDone } = req.body;
 
     /// update todo, but only if it belongs to the current user
-    const [updatedRowsCount]= await Todo.update(
-
+    const [updatedRowsCount] = await Todo.update(
       {
         title,
         description,
         isDone,
       },
       {
-        where:{
+        where: {
           id,
           userId: req.user.id, // security: only update users own todos
         },
       }
     );
-   
+
     // if no rows were updated, either todo doesnt exist
-    if(updatedRowsCount === 0){
+    if (updatedRowsCount === 0) {
       return res.status(404).json({
-        message:
-        "Todo item not found or you dont have permission to update",
-        isSuccessful:false,
+        message: "Todo item not found or you dont have permission to update",
+        isSuccessful: false,
       });
     }
 
@@ -553,37 +531,33 @@ app.put("/todo", requireAuth, async (req, res) => {
 //DELETE TODO
 
 app.delete("/todo/:id", requireAuth, async (req, res) => {
-  
-  try{
-const {id} = req.params;
-// delete todo, but if it belongs to a user
-const deletedRowsCount = await Todo.destroy({
-  where:{
-    id,
-    userId:req.user.id,// security: only delete todo for a user
-  },
-});
+  try {
+    const { id } = req.params;
+    // delete todo, but if it belongs to a user
+    const deletedRowsCount = await Todo.destroy({
+      where: {
+        id,
+        userId: req.user.id, // security: only delete todo for a user
+      },
+    });
 
-// if no rows deleted, either todo doesnt exist
-if(deletedRowsCount === 0){
-  return res.status(404).json({
-    messgae:
-    "todo item not found or you dont have permission"
-  });
-}
-return res.status(200).json({
-  message:"deleted successfully",
+    // if no rows deleted, either todo doesnt exist
+    if (deletedRowsCount === 0) {
+      return res.status(404).json({
+        messgae: "todo item not found or you dont have permission",
+      });
+    }
+    return res.status(200).json({
+      message: "deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting todo:", error);
+    return res.status(500).json({
+      message: "Error deleting todo item",
+      error: error.message,
+    });
+  }
 });
-  } catch(error){
- console.error("Error deleting todo:", error);
- return res.status(500).json({
-  message:"Error deleting todo item",
-  error:error.message,
- });
-  } 
-  
-});
-
 
 app.listen("5000", (error) => {
   if (error) {
