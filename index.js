@@ -364,18 +364,15 @@ app.use((req, res, next) => {
 
 // GET ALL TODOS FOR AUTHENTICATED USER
 
-app.use("/todo", (req, res, next) => {
-  if (req.method === "POST") {
-    // some checks code
-    const { authorization } = req.headers;
-    if (authorization === "qwertyuiop") {
-      return next();
-    } else
-      return res.status(401).json({ message: "You are not authenticated" });
+app.use("/todo",(req,res,next) =>{
+  //check if user is authenticated through session
+  if(!req.session || !req.session.UserId){
+    return res.status(401).json({
+      message: "Authentication required to access todos",
+    });
   }
   next();
-});
-
+})
 // Sample todo items array -> this is our db
 
 app.get("/", requireAuth, async (req, res) => {
