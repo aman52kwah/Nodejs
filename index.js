@@ -367,10 +367,12 @@ app.use((req, res, next) => {
 app.use("/todo",(req,res,next) =>{
   //check if user is authenticated through session
   if(!req.session || !req.session.UserId){
+    console.log(" Authentication failed - no session or userId");
     return res.status(401).json({
       message: "Authentication required to access todos",
     });
   }
+  console.log("✅ Authentication successful for user:", req.session.userId);
   next();
 })
 // Sample todo items array -> this is our db
@@ -501,29 +503,7 @@ app.put("/todo", requireAuth, async (req, res) => {
   }
 });
 
-// app.patch("/todo", (req, res) => {
-//   const { id } = req.query;
-//   console.log(id);
 
-//   let todoItem = todoItems.find((value) => value.id === id);
-//   if (!todoItem) {
-//     return res.status(404).json({ message: "Todo item is not found" });
-//   }
-//   // update the specified details of the id with a new one
-//   const newItems = todoItems.map((todoItem) => {
-//     if (todoItem.id === id) {
-//       return { ...todoItem, ...req.body };
-//     }
-//   });
-//   newItems.filter((item) => item !== undefined);
-
-//   todoItems = newItems;
-
-//   res.status(200).json({
-//     message: "Successfully updated the todo item",
-//     data: { ...req.body },
-//   });
-// });
 
 //DELETE TODO
 
